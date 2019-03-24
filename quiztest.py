@@ -3,22 +3,21 @@ import mechanize as mech
 import config
 import random
 import time
+import sqlite3
+import multiprocessing
 
-def doQuizTest():
+def doQuiz(student):
 	#Inititing browser simulatoe
 	browser = mech.Browser()
 	browser.set_handle_robots(False)
 	browser.open(config.MOODLE_SITE_LOGIN_URL)
-
-	#Choosing a random student
-	student_username = random.choice(config.STUDENTS)
 
 	#Logging on the moodle site
 	login_form = list(browser.forms())[0]
 	
 	#pointing to the form
 	browser.form = login_form
-	browser['username'] = student_username
+	browser['username'] = student
 	browser['password'] = 'S-tudent0'
 	browser.submit()
 
@@ -75,8 +74,52 @@ def doQuizTest():
 	#Closing browser object
 	browser.close()
 
-def main():
-	doQuizTest()
+def create_database_structure():
+	#creating database if not exists
+	conn = sqlite3.connect("quiztest.db")
 
-if __name__== "__main__":
-	main()
+	if conn is not None:
+		c = conn.cursor()
+		qry = open('create_database_structure.sql', 'r').read()
+		c.executescript(qry)
+		conn.commit()
+	else:
+		print("Error!! Cannot connect to the database")
+
+
+def executeTestOverQuiz(nusers, nspawn, tspawn, max_time):
+	#getting the users
+	students = config.STUDENTS[0:nusers]
+
+	#forming the groups
+	remainder = nusers % nspawn
+
+	if remainder == 0:
+		groups = nusers / nspawn
+	else:
+		groups = (nusers / nspawn) + 1
+
+
+	#control variables
+	init = 0
+	end = nspawn
+
+	for i in range(groups):
+		#Getting students in groups of nspawn students
+		students_to_spawn = students[init:end]
+
+		if i == (groups - 1):
+			#Getting students in the last group
+			students_to_spawn = students[init:]
+
+
+		#Launching independent processes per user
+		for student in students_to_spawn:
+			process = multiprocessing.Process(target=doQuiz, args=(student,))
+			process.start()
+
+		#updating control variables
+		init = end
+		end += nspawn
+
+		time.sleep(max_time)

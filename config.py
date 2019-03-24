@@ -11,3 +11,5 @@ COURSE_NAME='Quiztest'
 
 #Quiz name
 QUIZ_NAME='Quiztest'
+
+sql_database_structure="create_database_structure.sql"
